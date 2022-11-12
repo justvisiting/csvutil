@@ -195,6 +195,39 @@ func Header(v interface{}, tag string) ([]string, error) {
 	return h, nil
 }
 
+func ValueArr(v interface{}, tag string)  ([]byte, error) {
+    val := walkValue(reflect.ValueOf(v))
+
+	if !val.IsValid() {
+		return nil, &InvalidMarshalError{}
+	}
+
+	switch val.Kind() {
+	case reflect.Array, reflect.Slice:
+	default:
+		return nil, &InvalidMarshalError{Type: reflect.ValueOf(v).Type()}
+	}
+
+	typ := walkType(val.Type().Elem())
+	if typ.Kind() != reflect.Struct {
+		return nil, &InvalidMarshalError{Type: reflect.ValueOf(v).Type()}
+	}
+
+	var buf bytes.Buffer
+	w := csv.NewWriter(&buf)
+	enc := NewEncoder(w)
+
+	if err := enc.encodeArray(val); err != nil {
+		return nil, err
+	}
+
+	w.Flush()
+	if err := w.Error(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
 func valueType(v interface{}) (reflect.Type, error) {
 	val := reflect.ValueOf(v)
 	if !val.IsValid() {
